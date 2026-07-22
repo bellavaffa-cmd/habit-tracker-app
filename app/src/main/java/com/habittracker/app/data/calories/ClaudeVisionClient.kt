@@ -19,13 +19,15 @@ data class FoodAnalysis(
     val confidence: String
 )
 
+/** Thrown when Anthropic returns HTTP 429, so callers can fall back to manual entry instead of a generic error. */
+class RateLimitException(message: String) : IOException(message)
+
 /**
- * Calls the free-tier Google Gemini API directly from the device using the user's own API key
- * (from aistudio.google.com/apikey — no billing required for free-tier usage, unlike Claude).
- * Uses generationConfig.response_schema so the response is guaranteed-valid JSON rather than
- * freeform text we'd have to parse defensively.
+ * Calls the Claude Messages API directly from the device using the user's own Anthropic API key
+ * (see [CaloriesSettingsRepository]). Uses structured outputs (`output_config.format`) so the
+ * response is guaranteed-valid JSON rather than freeform text we'd have to parse defensively.
  */
-class GeminiVisionClient {
+class ClaudeVisionClient {
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -57,47 +59,65 @@ class GeminiVisionClient {
                 "required",
                 JSONArray(listOf("foodDescription", "calories", "proteinGrams", "carbsGrams", "fatGrams", "confidence"))
             )
+            put("additionalProperties", false)
         }
 
         val requestJson = JSONObject().apply {
+            put("model", "claude-opus-4-8")
+            put("max_tokens", 1024)
             put(
-                "contents",
-                JSONArray().put(
-                    JSONObject().put(
-                        "parts",
-                        JSONArray().apply {
-                            put(
-                                JSONObject().put(
-                                    "text",
-                                    "Identify the food in this photo and estimate its nutritional content " +
-                                        "for the visible portion: total calories, protein (g), carbs (g), and " +
-                                        "fat (g). Give your best estimate even if uncertain."
-                                )
-                            )
-                            put(
-                                JSONObject().put(
-                                    "inline_data",
-                                    JSONObject().apply {
-                                        put("mime_type", "image/jpeg")
-                                        put("data", base64Image)
-                                    }
-                                )
-                            )
-                        }
-                    )
+                "output_config",
+                JSONObject().put(
+                    "format",
+                    JSONObject().apply {
+                        put("type", "json_schema")
+                        put("schema", schema)
+                    }
                 )
             )
             put(
-                "generationConfig",
-                JSONObject().apply {
-                    put("response_mime_type", "application/json")
-                    put("response_schema", schema)
-                }
+                "messages",
+                JSONArray().put(
+                    JSONObject().apply {
+                        put("role", "user")
+                        put(
+                            "content",
+                            JSONArray().apply {
+                                put(
+                                    JSONObject().apply {
+                                        put("type", "image")
+                                        put(
+                                            "source",
+                                            JSONObject().apply {
+                                                put("type", "base64")
+                                                put("media_type", "image/jpeg")
+                                                put("data", base64Image)
+                                            }
+                                        )
+                                    }
+                                )
+                                put(
+                                    JSONObject().apply {
+                                        put("type", "text")
+                                        put(
+                                            "text",
+                                            "Identify the food in this photo and estimate its nutritional " +
+                                                "content for the visible portion: total calories, protein (g), " +
+                                                "carbs (g), and fat (g). Give your best estimate even if uncertain."
+                                        )
+                                    }
+                                )
+                            }
+                        )
+                    }
+                )
             )
         }
 
         val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent?key=$apiKey")
+            .url("https://api.anthropic.com/v1/messages")
+            .addHeader("x-api-key", apiKey)
+            .addHeader("anthropic-version", "2023-06-01")
             .addHeader("content-type", "application/json")
             .post(requestJson.toString().toRequestBody("application/json".toMediaType()))
             .build()
@@ -108,35 +128,24 @@ class GeminiVisionClient {
                 val message = runCatching {
                     JSONObject(responseBody).getJSONObject("error").getString("message")
                 }.getOrNull()
-                throw IOException(message ?: "Gemini API returned HTTP ${resp.code}")
+                if (resp.code == 429) {
+                    throw RateLimitException(message ?: "Anthropic rate limit reached.")
+                }
+                throw IOException(message ?: "Claude API returned HTTP ${resp.code}")
             }
 
             val json = JSONObject(responseBody)
-            val candidates = json.optJSONArray("candidates")
-            if (candidates == null || candidates.length() == 0) {
-                val blockReason = json.optJSONObject("promptFeedback")?.optString("blockReason")
-                throw IOException(
-                    if (!blockReason.isNullOrBlank()) {
-                        "The photo couldn't be analyzed (blocked: $blockReason)."
-                    } else {
-                        "No analysis returned."
-                    }
-                )
-            }
-
-            val candidate = candidates.getJSONObject(0)
-            if (candidate.optString("finishReason") in setOf("SAFETY", "RECITATION")) {
+            if (json.optString("stop_reason") == "refusal") {
                 throw IOException("The photo couldn't be analyzed (declined by the model).")
             }
 
-            val parts = candidate.getJSONObject("content").getJSONArray("parts")
-            val text = (0 until parts.length())
-                .map { parts.getJSONObject(it) }
-                .firstOrNull { it.has("text") }
-                ?.getString("text")
+            val content = json.getJSONArray("content")
+            val textBlock = (0 until content.length())
+                .map { content.getJSONObject(it) }
+                .firstOrNull { it.optString("type") == "text" }
                 ?: throw IOException("No analysis returned.")
 
-            val result = JSONObject(text)
+            val result = JSONObject(textBlock.getString("text"))
             return FoodAnalysis(
                 foodDescription = result.getString("foodDescription"),
                 calories = result.getInt("calories"),
@@ -146,9 +155,5 @@ class GeminiVisionClient {
                 confidence = result.getString("confidence")
             )
         }
-    }
-
-    private companion object {
-        const val MODEL = "gemini-3.6-flash"
     }
 }

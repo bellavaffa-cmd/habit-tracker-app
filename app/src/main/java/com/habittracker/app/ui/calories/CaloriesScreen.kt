@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,11 +63,14 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CaloriesScreen(viewModel: CaloriesViewModel) {
+fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
     val entries by viewModel.entries.collectAsState()
     val todayCalories by viewModel.todayCalories.collectAsState()
     val weekCalories by viewModel.weekCalories.collectAsState()
+    val hasApiKey by viewModel.hasApiKey.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.refreshApiKeyStatus() }
 
     val context = LocalContext.current
     var showSourceDialog by remember { mutableStateOf(false) }
@@ -88,7 +93,14 @@ fun CaloriesScreen(viewModel: CaloriesViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Calories") })
+            TopAppBar(
+                title = { Text("Calories") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Calories settings")
+                    }
+                }
+            )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showSourceDialog = true }) {
@@ -101,6 +113,10 @@ fun CaloriesScreen(viewModel: CaloriesViewModel) {
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
             item { CaloriesSummaryCard(today = todayCalories, week = weekCalories) }
+
+            if (!hasApiKey) {
+                item { ApiKeyMissingCard(onOpenSettings = onOpenSettings) }
+            }
 
             item { HorizontalDivider(modifier = Modifier.padding(top = 8.dp)) }
 
@@ -145,6 +161,7 @@ fun CaloriesScreen(viewModel: CaloriesViewModel) {
         is AnalysisState.Analyzing -> AnalyzingDialog()
         is AnalysisState.Ready -> ConfirmAnalysisDialog(
             analysis = state.analysis,
+            manualReason = state.manualReason,
             onSave = { description, calories, protein, carbs, fat ->
                 viewModel.saveEntry(state.photoPath, description, calories, protein, carbs, fat)
             },
@@ -220,15 +237,16 @@ private fun AnalyzingDialog() {
 
 @Composable
 private fun ConfirmAnalysisDialog(
-    analysis: FoodAnalysis,
+    analysis: FoodAnalysis?,
+    manualReason: String?,
     onSave: (foodDescription: String, calories: Int, protein: Double, carbs: Double, fat: Double) -> Unit,
     onDiscard: () -> Unit
 ) {
-    var description by remember { mutableStateOf(analysis.foodDescription) }
-    var calories by remember { mutableStateOf(analysis.calories.toString()) }
-    var protein by remember { mutableStateOf(analysis.proteinGrams.toString()) }
-    var carbs by remember { mutableStateOf(analysis.carbsGrams.toString()) }
-    var fat by remember { mutableStateOf(analysis.fatGrams.toString()) }
+    var description by remember { mutableStateOf(analysis?.foodDescription.orEmpty()) }
+    var calories by remember { mutableStateOf(analysis?.calories?.toString().orEmpty()) }
+    var protein by remember { mutableStateOf(analysis?.proteinGrams?.toString().orEmpty()) }
+    var carbs by remember { mutableStateOf(analysis?.carbsGrams?.toString().orEmpty()) }
+    var fat by remember { mutableStateOf(analysis?.fatGrams?.toString().orEmpty()) }
 
     val caloriesInt = calories.toIntOrNull()
     val proteinD = protein.toDoubleOrNull()
@@ -238,11 +256,11 @@ private fun ConfirmAnalysisDialog(
 
     AlertDialog(
         onDismissRequest = onDiscard,
-        title = { Text("Confirm meal") },
+        title = { Text(if (analysis == null) "Enter meal details" else "Confirm meal") },
         text = {
             Column {
                 Text(
-                    "AI confidence: ${analysis.confidence}",
+                    manualReason ?: "AI confidence: ${analysis?.confidence}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -315,6 +333,25 @@ private fun CaloriesSummaryCard(today: Int, week: Int) {
                 Text("$week", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 Text("this week", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+    }
+}
+
+@Composable
+private fun ApiKeyMissingCard(onOpenSettings: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        onClick = onOpenSettings
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Add your Anthropic API key for AI photo analysis — without one you'll enter meals manually.", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "Tap to open Calories Settings.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 }

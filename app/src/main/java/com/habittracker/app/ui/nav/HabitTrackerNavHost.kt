@@ -35,6 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.habittracker.app.HabitTrackerApplication
 import com.habittracker.app.ui.calories.CaloriesScreen
+import com.habittracker.app.ui.calories.CaloriesSettingsScreen
 import com.habittracker.app.ui.calories.CaloriesViewModel
 import com.habittracker.app.ui.common.ComingSoonScreen
 import com.habittracker.app.ui.home.HomeScreen
@@ -59,7 +60,8 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
     val caloriesViewModel: CaloriesViewModel = viewModel(
         factory = CaloriesViewModel.Factory(
             application = application,
-            repository = application.calorieLogRepository
+            repository = application.calorieLogRepository,
+            settingsRepository = application.caloriesSettingsRepository
         )
     )
 
@@ -99,13 +101,19 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                 ComingSoonScreen(title = "Workout Tracker", icon = Icons.Filled.FitnessCenter)
             }
             composable(Routes.CALORIES) {
-                CaloriesScreen(viewModel = caloriesViewModel)
+                CaloriesScreen(
+                    viewModel = caloriesViewModel,
+                    onOpenSettings = { navController.navigate(Routes.CALORIES_SETTINGS) }
+                )
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(updateManager = updateManager, onBack = { navController.popBackStack() })
             }
             composable(Routes.SMOKING_SETTINGS) {
                 SmokingSettingsScreen(viewModel = smokingViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.CALORIES_SETTINGS) {
+                CaloriesSettingsScreen(viewModel = caloriesViewModel, onBack = { navController.popBackStack() })
             }
         }
     }
