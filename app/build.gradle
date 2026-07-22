@@ -10,6 +10,15 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// geminiApiKey is read from local.properties (gitignored, never committed) and baked into
+// BuildConfig. Add a line `geminiApiKey=your-key-here` to local.properties to set it.
+def localPropertiesFile = rootProject.file('local.properties')
+def localProperties = new Properties()
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+def geminiApiKey = localProperties.getProperty('geminiApiKey', '')
+
 android {
     namespace 'com.habittracker.app'
     compileSdk 34
@@ -18,8 +27,9 @@ android {
         applicationId 'com.habittracker.app'
         minSdk 26
         targetSdk 34
-        versionCode 600
-        versionName '0.6.0'
+        versionCode 602
+        versionName '0.6.2'
+        buildConfigField "String", "GEMINI_API_KEY", "\"${geminiApiKey}\""
     }
 
     signingConfigs {
@@ -90,6 +100,4 @@ dependencies {
     implementation 'androidx.work:work-runtime-ktx:2.9.1'
 
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-
-    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 }

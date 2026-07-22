@@ -8,11 +8,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.habittracker.app.BuildConfig
 import com.habittracker.app.data.calories.CalorieLog
 import com.habittracker.app.data.calories.CalorieLogRepository
-import com.habittracker.app.data.calories.CaloriesSettingsRepository
-import com.habittracker.app.data.calories.ClaudeVisionClient
 import com.habittracker.app.data.calories.FoodAnalysis
+import com.habittracker.app.data.calories.GeminiVisionClient
 import com.habittracker.app.ui.common.StreakUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,11 +35,10 @@ sealed interface AnalysisState {
 
 class CaloriesViewModel(
     application: Application,
-    private val repository: CalorieLogRepository,
-    private val settingsRepository: CaloriesSettingsRepository
+    private val repository: CalorieLogRepository
 ) : AndroidViewModel(application) {
 
-    private val visionClient = ClaudeVisionClient()
+    private val visionClient = GeminiVisionClient()
 
     val entries: StateFlow<List<CalorieLog>> = repository.entries
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -54,25 +53,15 @@ class CaloriesViewModel(
         list.filter { it.timestampMillis >= start }.sumOf { it.calories }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    private val _hasApiKey = MutableStateFlow(!settingsRepository.getApiKey().isNullOrBlank())
-    val hasApiKey: StateFlow<Boolean> = _hasApiKey.asStateFlow()
-
     private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
     val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
 
-    fun setApiKey(key: String?) {
-        settingsRepository.setApiKey(key)
-        refreshApiKeyStatus()
-    }
-
-    fun refreshApiKeyStatus() {
-        _hasApiKey.value = !settingsRepository.getApiKey().isNullOrBlank()
-    }
-
     fun analyzePhoto(sourceUri: Uri) {
-        val apiKey = settingsRepository.getApiKey()
-        if (apiKey.isNullOrBlank()) {
-            _analysisState.value = AnalysisState.Error("Add your Anthropic API key in Calories Settings first.")
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        if (apiKey.isBlank()) {
+            _analysisState.value = AnalysisState.Error(
+                "No Gemini API key baked into this build. Add geminiApiKey to local.properties and rebuild."
+            )
             return
         }
         _analysisState.value = AnalysisState.Analyzing
@@ -122,12 +111,11 @@ class CaloriesViewModel(
 
     class Factory(
         private val application: Application,
-        private val repository: CalorieLogRepository,
-        private val settingsRepository: CaloriesSettingsRepository
+        private val repository: CalorieLogRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return CaloriesViewModel(application, repository, settingsRepository) as T
+            return CaloriesViewModel(application, repository) as T
         }
     }
 }
