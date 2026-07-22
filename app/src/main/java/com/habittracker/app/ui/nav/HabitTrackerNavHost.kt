@@ -39,6 +39,8 @@ import com.habittracker.app.ui.calories.CaloriesSettingsScreen
 import com.habittracker.app.ui.calories.CaloriesViewModel
 import com.habittracker.app.ui.common.ComingSoonScreen
 import com.habittracker.app.ui.home.HomeScreen
+import com.habittracker.app.ui.profile.ProfileScreen
+import com.habittracker.app.ui.profile.ProfileViewModel
 import com.habittracker.app.ui.settings.SettingsScreen
 import com.habittracker.app.ui.smoking.SmokingScreen
 import com.habittracker.app.ui.smoking.SmokingSettingsScreen
@@ -64,6 +66,12 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             settingsRepository = application.caloriesSettingsRepository
         )
     )
+    val profileViewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModel.Factory(
+            application = application,
+            repository = application.userProfileRepository
+        )
+    )
 
     val updateManager = application.updateManager
     val updateState by updateManager.state.collectAsState()
@@ -81,6 +89,7 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                 HomeScreen(
                     smokingViewModel = smokingViewModel,
                     caloriesViewModel = caloriesViewModel,
+                    profileViewModel = profileViewModel,
                     onNavigate = { route ->
                         navController.navigate(route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -107,13 +116,20 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                 )
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen(updateManager = updateManager, onBack = { navController.popBackStack() })
+                SettingsScreen(
+                    updateManager = updateManager,
+                    onOpenProfile = { navController.navigate(Routes.PROFILE) },
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(Routes.SMOKING_SETTINGS) {
                 SmokingSettingsScreen(viewModel = smokingViewModel, onBack = { navController.popBackStack() })
             }
             composable(Routes.CALORIES_SETTINGS) {
                 CaloriesSettingsScreen(viewModel = caloriesViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.PROFILE) {
+                ProfileScreen(viewModel = profileViewModel, onBack = { navController.popBackStack() })
             }
         }
     }

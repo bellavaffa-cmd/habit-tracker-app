@@ -28,9 +28,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.habittracker.app.data.profile.UserProfile
+import com.habittracker.app.data.profile.bmiCategory
 import com.habittracker.app.ui.calories.CaloriesViewModel
 import com.habittracker.app.ui.common.StreakUtils
 import com.habittracker.app.ui.nav.Routes
+import com.habittracker.app.ui.profile.ProfileViewModel
 import com.habittracker.app.ui.smoking.SmokingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,12 +41,14 @@ import com.habittracker.app.ui.smoking.SmokingViewModel
 fun HomeScreen(
     smokingViewModel: SmokingViewModel,
     caloriesViewModel: CaloriesViewModel,
+    profileViewModel: ProfileViewModel,
     onNavigate: (String) -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val todayCount by smokingViewModel.todayCount.collectAsState()
     val lastLog by smokingViewModel.lastLogTimestamp.collectAsState()
     val todayCalories by caloriesViewModel.todayCalories.collectAsState()
+    val profile by profileViewModel.profile.collectAsState()
     val now = System.currentTimeMillis()
 
     Scaffold(
@@ -63,6 +68,9 @@ fun HomeScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                GeneralHealthCard(profile = profile, onClick = { onNavigate(Routes.PROFILE) })
+            }
             item {
                 TrackerSummaryCard(
                     title = "Smoking",
@@ -88,6 +96,32 @@ fun HomeScreen(
                     primaryLine = "$todayCalories today",
                     secondaryLine = null,
                     onClick = { onNavigate(Routes.CALORIES) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GeneralHealthCard(profile: UserProfile, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(text = "General health", style = MaterialTheme.typography.titleMedium)
+            val bmi = profile.bmi
+            if (bmi != null) {
+                Text(
+                    text = "BMI ${"%.1f".format(bmi)} · ${bmiCategory(bmi)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = "Add your height and weight in Profile to see your BMI.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
