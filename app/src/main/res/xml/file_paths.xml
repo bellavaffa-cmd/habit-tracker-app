@@ -2,4 +2,6 @@
 <paths>
     <!-- The app's external files dir, where the downloaded update APK is written. -->
     <external-files-path name="updates" path="." />
+    <!-- The app's cache dir, where in-progress camera captures are written before analysis. -->
+    <cache-path name="camera_capture" path="camera_capture/" />
 </paths>

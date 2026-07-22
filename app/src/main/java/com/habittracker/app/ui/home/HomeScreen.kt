@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.LocalBar
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmokingRooms
@@ -29,15 +28,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.habittracker.app.ui.calories.CaloriesViewModel
 import com.habittracker.app.ui.common.StreakUtils
 import com.habittracker.app.ui.nav.Routes
 import com.habittracker.app.ui.smoking.SmokingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(smokingViewModel: SmokingViewModel, onNavigate: (String) -> Unit, onOpenSettings: () -> Unit) {
+fun HomeScreen(
+    smokingViewModel: SmokingViewModel,
+    caloriesViewModel: CaloriesViewModel,
+    onNavigate: (String) -> Unit,
+    onOpenSettings: () -> Unit
+) {
     val todayCount by smokingViewModel.todayCount.collectAsState()
     val lastLog by smokingViewModel.lastLogTimestamp.collectAsState()
+    val todayCalories by caloriesViewModel.todayCalories.collectAsState()
     val now = System.currentTimeMillis()
 
     Scaffold(
@@ -68,15 +74,6 @@ fun HomeScreen(smokingViewModel: SmokingViewModel, onNavigate: (String) -> Unit,
             }
             item {
                 TrackerSummaryCard(
-                    title = "Drinking",
-                    icon = Icons.Filled.LocalBar,
-                    primaryLine = "Coming soon",
-                    secondaryLine = null,
-                    onClick = { onNavigate(Routes.DRINKING) }
-                )
-            }
-            item {
-                TrackerSummaryCard(
                     title = "Workout",
                     icon = Icons.Filled.FitnessCenter,
                     primaryLine = "Coming soon",
@@ -88,7 +85,7 @@ fun HomeScreen(smokingViewModel: SmokingViewModel, onNavigate: (String) -> Unit,
                 TrackerSummaryCard(
                     title = "Calories (via photo)",
                     icon = Icons.Filled.Restaurant,
-                    primaryLine = "Coming soon",
+                    primaryLine = "$todayCalories today",
                     secondaryLine = null,
                     onClick = { onNavigate(Routes.CALORIES) }
                 )

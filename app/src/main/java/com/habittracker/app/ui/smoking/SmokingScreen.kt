@@ -50,6 +50,9 @@ import com.habittracker.app.data.smoking.SmokingLog
 import com.habittracker.app.ui.common.ConfirmDeleteDialog
 import com.habittracker.app.ui.common.StreakUtils
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,7 +125,14 @@ fun SmokingScreen(viewModel: SmokingViewModel, onOpenSettings: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
-            item { StreakCard(lastLog = lastLog, now = now) }
+            item {
+                StreakCard(
+                    lastLog = lastLog,
+                    now = now,
+                    effectiveIntervalMinutes = effectiveIntervalMinutes,
+                    nextAllowedTimestamp = nextAllowedTimestamp
+                )
+            }
 
             items(cardOrder, key = { it.name }) { id ->
                 val hidden = id in hiddenCards
@@ -141,9 +151,6 @@ fun SmokingScreen(viewModel: SmokingViewModel, onOpenSettings: () -> Unit) {
                             SmokingCardContent(
                                 id = id,
                                 viewModel = viewModel,
-                                effectiveIntervalMinutes = effectiveIntervalMinutes,
-                                nextAllowedTimestamp = nextAllowedTimestamp,
-                                now = now,
                                 todayCount = todayCount,
                                 weekCount = weekCount,
                                 monthCount = monthCount,
@@ -207,9 +214,6 @@ fun SmokingScreen(viewModel: SmokingViewModel, onOpenSettings: () -> Unit) {
 private fun SmokingCardContent(
     id: SmokingCardId,
     viewModel: SmokingViewModel,
-    effectiveIntervalMinutes: Int?,
-    nextAllowedTimestamp: Long?,
-    now: Long,
     todayCount: Int,
     weekCount: Int,
     monthCount: Int,
@@ -230,11 +234,6 @@ private fun SmokingCardContent(
     planProgress: PlanProgress?
 ) {
     when (id) {
-        SmokingCardId.INTERVAL_STATUS -> IntervalStatusCard(
-            effectiveIntervalMinutes = effectiveIntervalMinutes,
-            nextAllowedTimestamp = nextAllowedTimestamp,
-            now = now
-        )
         SmokingCardId.SMOKING_SUMMARY -> SmokingSummaryCard(
             todayCount = todayCount,
             weekCount = weekCount,
@@ -348,8 +347,12 @@ private fun LogActionsFab(onLogCigarette: () -> Unit, onLogPurchase: () -> Unit)
     }
 }
 
+private val intervalTimeOfDayFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+
 @Composable
-private fun StreakCard(lastLog: Long?, now: Long) {
+private fun StreakCard(lastLog: Long?, now: Long, effectiveIntervalMinutes: Int?, nextAllowedTimestamp: Long?) {
+    val allowed = nextAllowedTimestamp != null && now >= nextAllowedTimestamp
+
     Card(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -368,6 +371,21 @@ private fun StreakCard(lastLog: Long?, now: Long) {
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 4.dp)
+            )
+            Text(
+                text = when {
+                    effectiveIntervalMinutes == null || nextAllowedTimestamp == null ->
+                        "No interval reminder set — configure it in Smoking Settings."
+                    allowed -> "You can smoke now"
+                    else -> "Wait ${StreakUtils.formatElapsed(nextAllowedTimestamp - now)} — allowed at ${intervalTimeOfDayFormat.format(Date(nextAllowedTimestamp))}"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = when {
+                    effectiveIntervalMinutes == null || nextAllowedTimestamp == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                    allowed -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.error
+                },
+                modifier = Modifier.padding(top = 12.dp)
             )
         }
     }

@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.LocalBar
-import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +34,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.habittracker.app.HabitTrackerApplication
+import com.habittracker.app.ui.calories.CaloriesScreen
+import com.habittracker.app.ui.calories.CaloriesSettingsScreen
+import com.habittracker.app.ui.calories.CaloriesViewModel
 import com.habittracker.app.ui.common.ComingSoonScreen
 import com.habittracker.app.ui.home.HomeScreen
 import com.habittracker.app.ui.settings.SettingsScreen
@@ -56,6 +57,13 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             quitPlanRepository = application.quitPlanRepository
         )
     )
+    val caloriesViewModel: CaloriesViewModel = viewModel(
+        factory = CaloriesViewModel.Factory(
+            application = application,
+            repository = application.calorieLogRepository,
+            settingsRepository = application.caloriesSettingsRepository
+        )
+    )
 
     val updateManager = application.updateManager
     val updateState by updateManager.state.collectAsState()
@@ -72,6 +80,7 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             composable(Routes.HOME) {
                 HomeScreen(
                     smokingViewModel = smokingViewModel,
+                    caloriesViewModel = caloriesViewModel,
                     onNavigate = { route ->
                         navController.navigate(route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -88,17 +97,13 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                     onOpenSettings = { navController.navigate(Routes.SMOKING_SETTINGS) }
                 )
             }
-            composable(Routes.DRINKING) {
-                ComingSoonScreen(title = "Drinking Tracker", icon = Icons.Filled.LocalBar)
-            }
             composable(Routes.WORKOUT) {
                 ComingSoonScreen(title = "Workout Tracker", icon = Icons.Filled.FitnessCenter)
             }
             composable(Routes.CALORIES) {
-                ComingSoonScreen(
-                    title = "Calories Tracker",
-                    icon = Icons.Filled.Restaurant,
-                    message = "Will use the Claude Vision API to estimate calories from a food photo."
+                CaloriesScreen(
+                    viewModel = caloriesViewModel,
+                    onOpenSettings = { navController.navigate(Routes.CALORIES_SETTINGS) }
                 )
             }
             composable(Routes.SETTINGS) {
@@ -106,6 +111,9 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             }
             composable(Routes.SMOKING_SETTINGS) {
                 SmokingSettingsScreen(viewModel = smokingViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.CALORIES_SETTINGS) {
+                CaloriesSettingsScreen(viewModel = caloriesViewModel, onBack = { navController.popBackStack() })
             }
         }
     }

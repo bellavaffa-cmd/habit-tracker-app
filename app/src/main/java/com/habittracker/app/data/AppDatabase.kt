@@ -7,6 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.habittracker.app.data.calories.CalorieLog
+import com.habittracker.app.data.calories.CalorieLogDao
 import com.habittracker.app.data.smoking.CigarettePurchase
 import com.habittracker.app.data.smoking.CigarettePurchaseDao
 import com.habittracker.app.data.smoking.Converters
@@ -43,9 +45,28 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `calorie_log` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `timestampMillis` INTEGER NOT NULL,
+                `photoPath` TEXT,
+                `foodDescription` TEXT NOT NULL,
+                `calories` INTEGER NOT NULL,
+                `proteinGrams` REAL NOT NULL,
+                `carbsGrams` REAL NOT NULL,
+                `fatGrams` REAL NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
-    entities = [SmokingLog::class, CigarettePurchase::class, QuitPlan::class],
-    version = 2,
+    entities = [SmokingLog::class, CigarettePurchase::class, QuitPlan::class, CalorieLog::class],
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -53,6 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun smokingDao(): SmokingDao
     abstract fun cigarettePurchaseDao(): CigarettePurchaseDao
     abstract fun quitPlanDao(): QuitPlanDao
+    abstract fun calorieLogDao(): CalorieLogDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -63,7 +85,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "habit-tracker.db"
-                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
             }
     }
 }
