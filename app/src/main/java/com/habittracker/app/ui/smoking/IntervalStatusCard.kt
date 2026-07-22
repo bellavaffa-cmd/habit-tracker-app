@@ -21,23 +21,26 @@ private val timeOfDayFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
 /** Read-only live status for the interval reminder — the editable settings live in Smoking Settings. */
 @Composable
 fun IntervalStatusCard(effectiveIntervalMinutes: Int?, nextAllowedTimestamp: Long?, now: Long) {
-    if (effectiveIntervalMinutes == null || nextAllowedTimestamp == null) return
-
-    val allowed = now >= nextAllowedTimestamp
+    val allowed = nextAllowedTimestamp != null && now >= nextAllowedTimestamp
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Text(
-                text = if (allowed) {
-                    "You can smoke now"
-                } else {
-                    "Wait ${StreakUtils.formatElapsed(nextAllowedTimestamp - now)} — allowed at ${timeOfDayFormat.format(Date(nextAllowedTimestamp))}"
+                text = when {
+                    effectiveIntervalMinutes == null || nextAllowedTimestamp == null ->
+                        "No interval reminder set — configure it in Smoking Settings."
+                    allowed -> "You can smoke now"
+                    else -> "Wait ${StreakUtils.formatElapsed(nextAllowedTimestamp - now)} — allowed at ${timeOfDayFormat.format(Date(nextAllowedTimestamp))}"
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                color = when {
+                    effectiveIntervalMinutes == null || nextAllowedTimestamp == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                    allowed -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.error
+                }
             )
         }
     }

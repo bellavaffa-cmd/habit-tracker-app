@@ -17,4 +17,8 @@ class CigarettePurchaseRepository(private val dao: CigarettePurchaseDao) {
             )
         )
     }
+
+    suspend fun delete(purchase: CigarettePurchase) {
+        dao.delete(purchase)
+    }
 }

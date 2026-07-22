@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -23,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.habittracker.app.data.smoking.QuitPlanType
+import com.habittracker.app.ui.common.ExpandableCard
 
 private fun QuitPlanType.label(): String = when (this) {
     QuitPlanType.INTERVAL_TAPER -> "Interval tapering"
@@ -44,32 +43,24 @@ fun QuitPlanSection(
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("Quit plan", style = MaterialTheme.typography.titleMedium)
-
+    ExpandableCard(
+        title = "Quit plan",
+        summary = {
+            Text(
+                text = if (progress == null) {
+                    "No active plan"
+                } else {
+                    "${progress.plan.type.label()} — ${progress.daysRemaining} day(s) left"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        },
+        details = {
             if (progress == null) {
-                Text(
-                    text = "No active plan.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                )
                 OutlinedButton(onClick = { showDialog = true }) { Text("Start a plan") }
             } else {
-                Text(
-                    text = progress.plan.type.label(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Text(
-                    text = "${progress.daysRemaining} day(s) until your quit date",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
                 when (progress.plan.type) {
                     QuitPlanType.DAILY_COUNT_TAPER -> Text(
                         text = "Today's limit: ${progress.targetCountToday} · Smoked today: ${progress.actualCountToday}",
@@ -87,7 +78,7 @@ fun QuitPlanSection(
                 TextButton(onClick = onCancelPlan, modifier = Modifier.padding(top = 4.dp)) { Text("Cancel plan") }
             }
         }
-    }
+    )
 
     if (showDialog) {
         StartPlanDialog(

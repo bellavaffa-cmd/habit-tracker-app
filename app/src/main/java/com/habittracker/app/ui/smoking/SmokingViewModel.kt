@@ -11,6 +11,7 @@ import com.habittracker.app.data.smoking.QuitPlan
 import com.habittracker.app.data.smoking.QuitPlanCalculator
 import com.habittracker.app.data.smoking.QuitPlanRepository
 import com.habittracker.app.data.smoking.QuitPlanType
+import com.habittracker.app.data.smoking.SmokingCardId
 import com.habittracker.app.data.smoking.SmokingLog
 import com.habittracker.app.data.smoking.SmokingRepository
 import com.habittracker.app.data.smoking.SmokingSettingsRepository
@@ -127,15 +128,15 @@ class SmokingViewModel(
         .map { it?.let { p -> p.pricePerPack / p.sticksPerPack } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    /** Cigarettes actually bought (packsBought * sticksPerPack) within each period. */
-    val cigarettesPurchasedThisWeek: StateFlow<Int> = purchases.map { list ->
+    /** Packs actually bought within each period. */
+    val packsPurchasedThisWeek: StateFlow<Int> = purchases.map { list ->
         val start = StreakUtils.startOfWeek()
-        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought * it.sticksPerPack }
+        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val cigarettesPurchasedThisMonth: StateFlow<Int> = purchases.map { list ->
+    val packsPurchasedThisMonth: StateFlow<Int> = purchases.map { list ->
         val start = StreakUtils.startOfMonth()
-        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought * it.sticksPerPack }
+        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /** Money actually paid out on purchases within each period (not an estimate). */
@@ -160,6 +161,12 @@ class SmokingViewModel(
 
     val currencySymbol: StateFlow<String> = settingsRepository.currencySymbol
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "$")
+
+    val cardOrder: StateFlow<List<SmokingCardId>> = settingsRepository.cardOrder
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SmokingCardId.entries.toList())
+
+    val hiddenCards: StateFlow<Set<SmokingCardId>> = settingsRepository.hiddenCards
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     fun logNow() {
         viewModelScope.launch {
@@ -196,6 +203,27 @@ class SmokingViewModel(
 
     fun logPurchase(packsBought: Int, pricePerPack: Double, sticksPerPack: Int) {
         viewModelScope.launch { purchaseRepository.logPurchase(packsBought, pricePerPack, sticksPerPack) }
+    }
+
+    fun deletePurchase(purchase: CigarettePurchase) {
+        viewModelScope.launch { purchaseRepository.delete(purchase) }
+    }
+
+    fun moveCard(id: SmokingCardId, direction: Int) {
+        viewModelScope.launch {
+            val current = cardOrder.value.toMutableList()
+            val index = current.indexOf(id)
+            val newIndex = index + direction
+            if (index !in current.indices || newIndex !in current.indices) return@launch
+            val moved = current[newIndex]
+            current[newIndex] = current[index]
+            current[index] = moved
+            settingsRepository.setCardOrder(current)
+        }
+    }
+
+    fun setCardHidden(id: SmokingCardId, hidden: Boolean) {
+        viewModelScope.launch { settingsRepository.setCardHidden(id, hidden) }
     }
 
     fun startPlan(type: QuitPlanType, weeksToQuit: Int, startValue: Int) {

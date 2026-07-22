@@ -4,9 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.habittracker.app.data.smoking.CigarettePurchase
@@ -21,12 +26,13 @@ private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 @Composable
 fun PurchaseSummaryCard(
     currencySymbol: String,
-    cigarettesThisWeek: Int,
-    cigarettesThisMonth: Int,
+    packsThisWeek: Int,
+    packsThisMonth: Int,
     costThisWeek: Double,
     costThisMonth: Double,
     costPerCigarette: Double?,
-    recentPurchases: List<CigarettePurchase>
+    recentPurchases: List<CigarettePurchase>,
+    onRequestDelete: (CigarettePurchase) -> Unit
 ) {
     ExpandableCard(
         title = "Purchases",
@@ -35,8 +41,8 @@ fun PurchaseSummaryCard(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                MiniStat(label = "Cig. this week", value = cigarettesThisWeek.toString())
-                MiniStat(label = "Cig. this month", value = cigarettesThisMonth.toString())
+                MiniStat(label = "Packs this week", value = packsThisWeek.toString())
+                MiniStat(label = "Packs this month", value = packsThisMonth.toString())
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -63,11 +69,32 @@ fun PurchaseSummaryCard(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             } else {
-                recentPurchases.take(5).forEach { purchase ->
+                recentPurchases.take(10).forEach { purchase ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${dateFormat.format(Date(purchase.timestampMillis))} — ${purchase.packsBought} pack(s) @ " +
+                                "${formatMoney(currencySymbol, purchase.pricePerPack)}, ${purchase.sticksPerPack}/pack",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { onRequestDelete(purchase) }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Delete purchase",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                if (recentPurchases.size > 10) {
                     Text(
-                        "${dateFormat.format(Date(purchase.timestampMillis))} — ${purchase.packsBought} pack(s) @ " +
-                            "${formatMoney(currencySymbol, purchase.pricePerPack)}, ${purchase.sticksPerPack}/pack",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Showing the 10 most recent purchases.",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp)
                     )
