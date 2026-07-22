@@ -40,6 +40,7 @@ import com.habittracker.app.ui.common.ComingSoonScreen
 import com.habittracker.app.ui.home.HomeScreen
 import com.habittracker.app.ui.settings.SettingsScreen
 import com.habittracker.app.ui.smoking.SmokingScreen
+import com.habittracker.app.ui.smoking.SmokingSettingsScreen
 import com.habittracker.app.ui.smoking.SmokingViewModel
 import com.habittracker.app.update.UpdateInfo
 
@@ -82,7 +83,10 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                 )
             }
             composable(Routes.SMOKING) {
-                SmokingScreen(viewModel = smokingViewModel)
+                SmokingScreen(
+                    viewModel = smokingViewModel,
+                    onOpenSettings = { navController.navigate(Routes.SMOKING_SETTINGS) }
+                )
             }
             composable(Routes.DRINKING) {
                 ComingSoonScreen(title = "Drinking Tracker", icon = Icons.Filled.LocalBar)
@@ -99,6 +103,9 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(updateManager = updateManager, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SMOKING_SETTINGS) {
+                SmokingSettingsScreen(viewModel = smokingViewModel, onBack = { navController.popBackStack() })
             }
         }
     }

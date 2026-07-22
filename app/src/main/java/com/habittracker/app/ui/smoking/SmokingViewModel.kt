@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class PlanProgress(
     val plan: QuitPlan,
@@ -31,6 +34,10 @@ data class PlanProgress(
     val targetIntervalMinutesToday: Int?,
     val daysRemaining: Long
 )
+
+data class DayCount(val label: String, val count: Int)
+
+private val dayLabelFormat = SimpleDateFormat("EEE", Locale.getDefault())
 
 class SmokingViewModel(
     application: Application,
@@ -52,6 +59,27 @@ class SmokingViewModel(
         val start = StreakUtils.startOfWeek()
         list.count { it.timestampMillis >= start }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val monthCount: StateFlow<Int> = entries.map { list ->
+        val start = StreakUtils.startOfMonth()
+        list.count { it.timestampMillis >= start }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val previousWeekCount: StateFlow<Int> = entries.map { list ->
+        val start = StreakUtils.startOfPreviousWeek()
+        val end = StreakUtils.startOfWeek()
+        list.count { it.timestampMillis in start until end }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val last7DaysBreakdown: StateFlow<List<DayCount>> = entries.map { list ->
+        (6 downTo 0).map { daysAgo ->
+            val start = StreakUtils.startOfDay(daysAgo)
+            val end = start + 24 * 60 * 60 * 1000
+            val count = list.count { it.timestampMillis in start until end }
+            val label = if (daysAgo == 0) "Today" else dayLabelFormat.format(Date(start))
+            DayCount(label, count)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val lastLogTimestamp: StateFlow<Long?> = entries
         .map { list -> list.maxOfOrNull { it.timestampMillis } }
@@ -89,6 +117,9 @@ class SmokingViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val purchases: StateFlow<List<CigarettePurchase>> = purchaseRepository.purchases
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val latestPurchase: StateFlow<CigarettePurchase?> = purchaseRepository.latestPurchase
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -96,13 +127,39 @@ class SmokingViewModel(
         .map { it?.let { p -> p.pricePerPack / p.sticksPerPack } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val spentToday: StateFlow<Double?> = combine(todayCount, costPerCigarette) { count, cost ->
+    /** Cigarettes actually bought (packsBought * sticksPerPack) within each period. */
+    val cigarettesPurchasedThisWeek: StateFlow<Int> = purchases.map { list ->
+        val start = StreakUtils.startOfWeek()
+        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought * it.sticksPerPack }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val cigarettesPurchasedThisMonth: StateFlow<Int> = purchases.map { list ->
+        val start = StreakUtils.startOfMonth()
+        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought * it.sticksPerPack }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** Money actually paid out on purchases within each period (not an estimate). */
+    val costThisWeek: StateFlow<Double> = purchases.map { list ->
+        val start = StreakUtils.startOfWeek()
+        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought * it.pricePerPack }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val costThisMonth: StateFlow<Double> = purchases.map { list ->
+        val start = StreakUtils.startOfMonth()
+        list.filter { it.timestampMillis >= start }.sumOf { it.packsBought * it.pricePerPack }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    /** Estimated value of what was smoked (count * cost/cigarette) — used for week-over-week trend, since actual purchases are lumpy. */
+    val weekSpendEstimate: StateFlow<Double?> = combine(weekCount, costPerCigarette) { count, cost ->
         cost?.let { count * it }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val spentWeek: StateFlow<Double?> = combine(weekCount, costPerCigarette) { count, cost ->
+    val previousWeekSpendEstimate: StateFlow<Double?> = combine(previousWeekCount, costPerCigarette) { count, cost ->
         cost?.let { count * it }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val currencySymbol: StateFlow<String> = settingsRepository.currencySymbol
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "$")
 
     fun logNow() {
         viewModelScope.launch {
@@ -131,6 +188,10 @@ class SmokingViewModel(
 
     fun setManualIntervalMinutes(minutes: Int?) {
         viewModelScope.launch { settingsRepository.setIntervalMinutes(minutes) }
+    }
+
+    fun setCurrencySymbol(symbol: String) {
+        viewModelScope.launch { settingsRepository.setCurrencySymbol(symbol) }
     }
 
     fun logPurchase(packsBought: Int, pricePerPack: Double, sticksPerPack: Int) {

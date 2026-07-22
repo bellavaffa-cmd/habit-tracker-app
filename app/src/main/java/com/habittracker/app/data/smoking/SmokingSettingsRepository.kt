@@ -3,15 +3,18 @@ package com.habittracker.app.data.smoking
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private val Context.smokingDataStore by preferencesDataStore(name = "smoking_settings")
 private val KEY_INTERVAL_MINUTES = intPreferencesKey("interval_minutes")
+private val KEY_CURRENCY_SYMBOL = stringPreferencesKey("currency_symbol")
 
-/** The user's manually-set minimum interval (minutes) between cigarettes. Null = not set. */
+/** Per-tracker settings: the interval reminder and the currency used for cost figures. */
 class SmokingSettingsRepository(private val context: Context) {
+    /** The user's manually-set minimum interval (minutes) between cigarettes. Null = not set. */
     val intervalMinutes: Flow<Int?> = context.smokingDataStore.data.map { prefs ->
         prefs[KEY_INTERVAL_MINUTES]?.takeIf { it > 0 }
     }
@@ -21,5 +24,13 @@ class SmokingSettingsRepository(private val context: Context) {
             if (minutes == null || minutes <= 0) prefs.remove(KEY_INTERVAL_MINUTES)
             else prefs[KEY_INTERVAL_MINUTES] = minutes
         }
+    }
+
+    val currencySymbol: Flow<String> = context.smokingDataStore.data.map { prefs ->
+        prefs[KEY_CURRENCY_SYMBOL] ?: "$"
+    }
+
+    suspend fun setCurrencySymbol(symbol: String) {
+        context.smokingDataStore.edit { prefs -> prefs[KEY_CURRENCY_SYMBOL] = symbol }
     }
 }

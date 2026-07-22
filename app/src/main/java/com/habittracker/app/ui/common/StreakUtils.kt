@@ -30,6 +30,34 @@ object StreakUtils {
         return cal.timeInMillis
     }
 
+    fun startOfMonth(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    fun startOfPreviousWeek(): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = startOfWeek()
+        cal.add(Calendar.DAY_OF_YEAR, -7)
+        return cal.timeInMillis
+    }
+
+    /** Start-of-day timestamp for [daysAgo] days before today (0 = today). */
+    fun startOfDay(daysAgo: Int): Long {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
     /** Formats an elapsed duration in millis as e.g. "2d 4h 15m" (drops leading zero units). */
     fun formatElapsed(millis: Long): String {
         if (millis < 60_000) return "<1m"

@@ -19,25 +19,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.habittracker.app.ui.common.StreakUtils
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 private val presetIntervals = listOf(30, 60, 90, 120)
-private val timeOfDayFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
 
+/** The interval reminder's settings editor (chips + custom permission handling) — lives in Smoking Settings. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IntervalSection(
     manualIntervalMinutes: Int?,
     effectiveIntervalMinutes: Int?,
     isPlanControlled: Boolean,
-    nextAllowedTimestamp: Long?,
-    now: Long,
     onSetInterval: (Int?) -> Unit
 ) {
     val context = LocalContext.current
@@ -52,7 +45,7 @@ fun IntervalSection(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -89,21 +82,6 @@ fun IntervalSection(
                         )
                     }
                 }
-            }
-
-            if (effectiveIntervalMinutes != null) {
-                val allowed = nextAllowedTimestamp != null && now >= nextAllowedTimestamp
-                Text(
-                    text = when {
-                        nextAllowedTimestamp == null -> ""
-                        allowed -> "You can smoke now"
-                        else -> "Wait ${StreakUtils.formatElapsed(nextAllowedTimestamp - now)} — allowed at ${timeOfDayFormat.format(Date(nextAllowedTimestamp))}"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (allowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 12.dp)
-                )
             }
         }
     }
