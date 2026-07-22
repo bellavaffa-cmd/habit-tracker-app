@@ -9,6 +9,7 @@ import com.habittracker.app.data.calories.CaloriesSettingsRepository
 import com.habittracker.app.data.calories.RateLimitException
 import com.habittracker.app.data.profile.UserProfile
 import com.habittracker.app.data.profile.UserProfileRepository
+import com.habittracker.app.data.steps.HealthConnectStatus
 import com.habittracker.app.data.steps.StepsRepository
 import com.habittracker.app.data.workout.DEFAULT_WEIGHT_KG
 import com.habittracker.app.data.workout.GymExerciseLog
@@ -48,7 +49,7 @@ class WorkoutViewModel(
 
     private val planClient = WorkoutPlanClient()
 
-    val stepsAvailable: Boolean = stepsRepository.isAvailable()
+    val stepsStatus: HealthConnectStatus = stepsRepository.status()
     val stepsPermission: String = stepsRepository.readStepsPermission
 
     private val _hasStepsPermission = MutableStateFlow(false)

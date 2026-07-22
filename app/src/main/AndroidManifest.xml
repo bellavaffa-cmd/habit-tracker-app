@@ -11,6 +11,13 @@
     <!-- Reads step counts synced to Health Connect from the user's smartwatch companion app. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
 
+    <!-- Required on Android 11+ package-visibility rules so the system can resolve the Health
+         Connect app to launch its permission-request screen; without this the "Connect" button
+         silently fails to open anything. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
     <application
         android:name=".HabitTrackerApplication"
         android:allowBackup="true"

@@ -1,5 +1,7 @@
 package com.habittracker.app.ui.workout
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
@@ -49,10 +51,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
+import com.habittracker.app.data.steps.HEALTH_CONNECT_PACKAGE
+import com.habittracker.app.data.steps.HealthConnectStatus
 import com.habittracker.app.data.workout.WorkoutLog
 import com.habittracker.app.data.workout.caloriesBurnedFor
 import com.habittracker.app.ui.common.ConfirmDeleteDialog
@@ -80,6 +85,7 @@ fun WorkoutScreen(
     val hasStepsPermission by viewModel.hasStepsPermission.collectAsState()
     val todaySteps by viewModel.todaySteps.collectAsState()
     val weekSteps by viewModel.weekSteps.collectAsState()
+    val context = LocalContext.current
 
     var showLogDialog by remember { mutableStateOf(false) }
     var pendingDeleteEntry by remember { mutableStateOf<WorkoutLog?>(null) }
@@ -127,11 +133,14 @@ fun WorkoutScreen(
             }
             item {
                 StepsCard(
-                    available = viewModel.stepsAvailable,
+                    status = viewModel.stepsStatus,
                     hasPermission = hasStepsPermission,
                     todaySteps = todaySteps,
                     weekSteps = weekSteps,
-                    onConnect = { stepsPermissionLauncher.launch(setOf(viewModel.stepsPermission)) }
+                    onConnect = { stepsPermissionLauncher.launch(setOf(viewModel.stepsPermission)) },
+                    onInstallHealthConnect = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$HEALTH_CONNECT_PACKAGE")))
+                    }
                 )
             }
             item { HorizontalDivider() }
@@ -259,11 +268,12 @@ private fun WorkoutSummaryCard(
 
 @Composable
 private fun StepsCard(
-    available: Boolean,
+    status: HealthConnectStatus,
     hasPermission: Boolean,
     todaySteps: Long,
     weekSteps: Long,
-    onConnect: () -> Unit
+    onConnect: () -> Unit,
+    onInstallHealthConnect: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -275,12 +285,21 @@ private fun StepsCard(
                 Text("Steps", style = MaterialTheme.typography.titleMedium)
             }
             when {
-                !available -> Text(
-                    "Health Connect isn't available on this device.",
+                status == HealthConnectStatus.UNAVAILABLE -> Text(
+                    "Health Connect isn't supported on this device.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
+                status == HealthConnectStatus.UPDATE_REQUIRED -> {
+                    Text(
+                        "Health Connect needs to be installed or updated to read step data.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
+                    )
+                    OutlinedButton(onClick = onInstallHealthConnect) { Text("Install / update") }
+                }
                 !hasPermission -> {
                     Text(
                         "Connect Health Connect to pull step counts synced from your smartwatch.",

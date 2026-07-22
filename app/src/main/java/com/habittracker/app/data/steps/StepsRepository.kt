@@ -9,6 +9,12 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Instant
 
+enum class HealthConnectStatus { AVAILABLE, UPDATE_REQUIRED, UNAVAILABLE }
+
+/** Package name of the Health Connect app, used both for the manifest &lt;queries&gt; declaration
+ * and to build a Play Store link when it needs installing or updating. */
+const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
+
 /**
  * Reads step counts from Health Connect — the standard Android hub that smartwatch companion
  * apps (Samsung Health, Fitbit, Google Fit/Wear OS, etc.) sync step data into. This app never
@@ -18,8 +24,13 @@ import java.time.Instant
 class StepsRepository(private val context: Context) {
     val readStepsPermission: String = HealthPermission.getReadPermission(StepsRecord::class)
 
-    fun isAvailable(): Boolean =
-        HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+    fun status(): HealthConnectStatus = when (HealthConnectClient.getSdkStatus(context)) {
+        HealthConnectClient.SDK_AVAILABLE -> HealthConnectStatus.AVAILABLE
+        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthConnectStatus.UPDATE_REQUIRED
+        else -> HealthConnectStatus.UNAVAILABLE
+    }
+
+    fun isAvailable(): Boolean = status() == HealthConnectStatus.AVAILABLE
 
     private val client: HealthConnectClient? by lazy {
         if (isAvailable()) HealthConnectClient.getOrCreate(context) else null
