@@ -12,11 +12,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalBar
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmokingRooms
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -33,13 +35,22 @@ import com.habittracker.app.ui.smoking.SmokingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(smokingViewModel: SmokingViewModel, onNavigate: (String) -> Unit) {
+fun HomeScreen(smokingViewModel: SmokingViewModel, onNavigate: (String) -> Unit, onOpenSettings: () -> Unit) {
     val todayCount by smokingViewModel.todayCount.collectAsState()
     val lastLog by smokingViewModel.lastLogTimestamp.collectAsState()
     val now = System.currentTimeMillis()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Habit Tracker") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Habit Tracker") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
+                }
+            )
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding),

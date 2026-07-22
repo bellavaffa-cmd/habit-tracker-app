@@ -18,8 +18,8 @@ android {
         applicationId 'com.habittracker.app'
         minSdk 26
         targetSdk 34
-        versionCode 200
-        versionName '0.2.0'
+        versionCode 300
+        versionName '0.3.0'
     }
 
     signingConfigs {
@@ -52,6 +52,7 @@ android {
 
     buildFeatures {
         compose true
+        buildConfig true
     }
 
     composeOptions {
@@ -87,4 +88,6 @@ dependencies {
 
     implementation 'androidx.datastore:datastore-preferences:1.1.1'
     implementation 'androidx.work:work-runtime-ktx:2.9.1'
+
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }

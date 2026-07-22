@@ -14,6 +14,7 @@ object Routes {
     const val DRINKING = "drinking"
     const val WORKOUT = "workout"
     const val CALORIES = "calories"
+    const val SETTINGS = "settings"
 }
 
 data class BottomNavItem(val route: String, val label: String, val icon: ImageVector)
