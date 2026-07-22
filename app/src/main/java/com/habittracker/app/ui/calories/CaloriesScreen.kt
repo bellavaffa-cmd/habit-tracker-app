@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -61,6 +62,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private enum class LogMode { AI_FOOD, BARCODE, NUTRITION_LABEL }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
@@ -73,12 +76,22 @@ fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
     LaunchedEffect(Unit) { viewModel.refreshApiKeyStatus() }
 
     val context = LocalContext.current
+    var showModeDialog by remember { mutableStateOf(false) }
     var showSourceDialog by remember { mutableStateOf(false) }
+    var pendingLogMode by remember { mutableStateOf(LogMode.AI_FOOD) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
     var pendingDeleteEntry by remember { mutableStateOf<CalorieLog?>(null) }
 
+    fun dispatchPhoto(uri: Uri) {
+        when (pendingLogMode) {
+            LogMode.BARCODE -> viewModel.scanBarcode(uri)
+            LogMode.NUTRITION_LABEL -> viewModel.scanNutritionLabel(uri)
+            LogMode.AI_FOOD -> viewModel.analyzePhoto(uri)
+        }
+    }
+
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) pendingCameraUri?.let { viewModel.analyzePhoto(it) }
+        if (success) pendingCameraUri?.let { dispatchPhoto(it) }
     }
     val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
@@ -88,7 +101,7 @@ fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
         }
     }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) viewModel.analyzePhoto(uri)
+        if (uri != null) dispatchPhoto(uri)
     }
 
     Scaffold(
@@ -103,7 +116,7 @@ fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showSourceDialog = true }) {
+            FloatingActionButton(onClick = { showModeDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Log a meal")
             }
         }
@@ -137,8 +150,24 @@ fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
         }
     }
 
+    if (showModeDialog) {
+        LogMealModeDialog(
+            onDismiss = { showModeDialog = false },
+            onSelect = { mode ->
+                pendingLogMode = mode
+                showModeDialog = false
+                showSourceDialog = true
+            }
+        )
+    }
+
     if (showSourceDialog) {
         PhotoSourceDialog(
+            title = when (pendingLogMode) {
+                LogMode.BARCODE -> "Scan a barcode"
+                LogMode.NUTRITION_LABEL -> "Scan a nutrition label"
+                LogMode.AI_FOOD -> "Log a meal"
+            },
             onDismiss = { showSourceDialog = false },
             onTakePhoto = {
                 showSourceDialog = false
@@ -161,7 +190,7 @@ fun CaloriesScreen(viewModel: CaloriesViewModel, onOpenSettings: () -> Unit) {
         is AnalysisState.Analyzing -> AnalyzingDialog()
         is AnalysisState.Ready -> ConfirmAnalysisDialog(
             analysis = state.analysis,
-            manualReason = state.manualReason,
+            sourceNote = state.sourceNote,
             onSave = { description, calories, protein, carbs, fat ->
                 viewModel.saveEntry(state.photoPath, description, calories, protein, carbs, fat)
             },
@@ -197,10 +226,55 @@ private fun createCameraCaptureUri(context: Context): Uri {
 }
 
 @Composable
-private fun PhotoSourceDialog(onDismiss: () -> Unit, onTakePhoto: () -> Unit, onChooseGallery: () -> Unit) {
+private fun LogMealModeDialog(onDismiss: () -> Unit, onSelect: (LogMode) -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Log a meal", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 4.dp))
+                Text(
+                    "How do you want to add this?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                LogModeRow(
+                    title = "Photo of the food",
+                    subtitle = "AI identifies it and estimates calories",
+                    onClick = { onSelect(LogMode.AI_FOOD) }
+                )
+                LogModeRow(
+                    title = "Scan a barcode",
+                    subtitle = "Looks it up in a free product database — no AI",
+                    onClick = { onSelect(LogMode.BARCODE) }
+                )
+                LogModeRow(
+                    title = "Photo of the nutrition label",
+                    subtitle = "Reads the facts table directly — no AI",
+                    onClick = { onSelect(LogMode.NUTRITION_LABEL) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogModeRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp)
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun PhotoSourceDialog(title: String, onDismiss: () -> Unit, onTakePhoto: () -> Unit, onChooseGallery: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log a meal") },
+        title = { Text(title) },
         text = {
             Text(
                 "How would you like to add a photo?",
@@ -238,7 +312,7 @@ private fun AnalyzingDialog() {
 @Composable
 private fun ConfirmAnalysisDialog(
     analysis: FoodAnalysis?,
-    manualReason: String?,
+    sourceNote: String?,
     onSave: (foodDescription: String, calories: Int, protein: Double, carbs: Double, fat: Double) -> Unit,
     onDiscard: () -> Unit
 ) {
@@ -260,7 +334,7 @@ private fun ConfirmAnalysisDialog(
         text = {
             Column {
                 Text(
-                    manualReason ?: "AI confidence: ${analysis?.confidence}",
+                    sourceNote ?: "AI confidence: ${analysis?.confidence}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)

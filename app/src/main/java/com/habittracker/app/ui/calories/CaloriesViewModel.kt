@@ -11,8 +11,10 @@ import androidx.lifecycle.viewModelScope
 import com.habittracker.app.data.calories.CalorieLog
 import com.habittracker.app.data.calories.CalorieLogRepository
 import com.habittracker.app.data.calories.CaloriesSettingsRepository
+import com.habittracker.app.data.calories.BarcodeLookupClient
 import com.habittracker.app.data.calories.ClaudeVisionClient
 import com.habittracker.app.data.calories.FoodAnalysis
+import com.habittracker.app.data.calories.NutritionLabelScanner
 import com.habittracker.app.data.calories.RateLimitException
 import com.habittracker.app.ui.common.StreakUtils
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +35,7 @@ sealed interface AnalysisState {
     data class Ready(
         val photoPath: String,
         val analysis: FoodAnalysis?,
-        val manualReason: String? = null
+        val sourceNote: String? = null
     ) : AnalysisState
     data class Error(val message: String) : AnalysisState
 }
@@ -45,6 +47,8 @@ class CaloriesViewModel(
 ) : AndroidViewModel(application) {
 
     private val visionClient = ClaudeVisionClient()
+    private val barcodeLookupClient = BarcodeLookupClient()
+    private val nutritionLabelScanner = NutritionLabelScanner()
 
     val entries: StateFlow<List<CalorieLog>> = repository.entries
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -84,7 +88,7 @@ class CaloriesViewModel(
                     _analysisState.value = AnalysisState.Ready(
                         savedPath,
                         analysis = null,
-                        manualReason = "No Anthropic API key set — enter the meal details yourself."
+                        sourceNote = "No Anthropic API key set — enter the meal details yourself."
                     )
                     return@launch
                 }
@@ -96,11 +100,55 @@ class CaloriesViewModel(
                     _analysisState.value = AnalysisState.Ready(
                         savedPath,
                         analysis = null,
-                        manualReason = "Anthropic rate limit reached — enter the meal details yourself."
+                        sourceNote = "Anthropic rate limit reached — enter the meal details yourself."
                     )
                 }
             } catch (e: Exception) {
                 _analysisState.value = AnalysisState.Error(e.message ?: "Something went wrong analyzing the photo.")
+            }
+        }
+    }
+
+    fun scanBarcode(sourceUri: Uri) {
+        _analysisState.value = AnalysisState.Analyzing
+        viewModelScope.launch {
+            try {
+                val savedPath = withContext(Dispatchers.IO) { savePhoto(sourceUri) }
+                try {
+                    val bitmap = BitmapFactory.decodeFile(savedPath)
+                    val analysis = withContext(Dispatchers.IO) { barcodeLookupClient.lookup(bitmap) }
+                    _analysisState.value = AnalysisState.Ready(savedPath, analysis, "From barcode lookup (Open Food Facts).")
+                } catch (e: Exception) {
+                    _analysisState.value = AnalysisState.Ready(
+                        savedPath,
+                        analysis = null,
+                        sourceNote = "${e.message ?: "Couldn't look up that barcode."} Enter the meal details yourself."
+                    )
+                }
+            } catch (e: Exception) {
+                _analysisState.value = AnalysisState.Error(e.message ?: "Something went wrong reading the photo.")
+            }
+        }
+    }
+
+    fun scanNutritionLabel(sourceUri: Uri) {
+        _analysisState.value = AnalysisState.Analyzing
+        viewModelScope.launch {
+            try {
+                val savedPath = withContext(Dispatchers.IO) { savePhoto(sourceUri) }
+                try {
+                    val bitmap = BitmapFactory.decodeFile(savedPath)
+                    val analysis = withContext(Dispatchers.IO) { nutritionLabelScanner.scan(bitmap) }
+                    _analysisState.value = AnalysisState.Ready(savedPath, analysis, "From nutrition label scan — double-check the numbers.")
+                } catch (e: Exception) {
+                    _analysisState.value = AnalysisState.Ready(
+                        savedPath,
+                        analysis = null,
+                        sourceNote = "Couldn't read the label. Enter the meal details yourself."
+                    )
+                }
+            } catch (e: Exception) {
+                _analysisState.value = AnalysisState.Error(e.message ?: "Something went wrong reading the photo.")
             }
         }
     }
