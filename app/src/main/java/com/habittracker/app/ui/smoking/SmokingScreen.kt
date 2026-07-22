@@ -1,7 +1,6 @@
 package com.habittracker.app.ui.smoking
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.habittracker.app.data.smoking.QuitPlanType
 import com.habittracker.app.data.smoking.SmokingLog
 import com.habittracker.app.ui.common.StreakUtils
 import kotlinx.coroutines.delay
@@ -50,11 +50,22 @@ fun SmokingScreen(viewModel: SmokingViewModel) {
     val weekCount by viewModel.weekCount.collectAsState()
     val lastLog by viewModel.lastLogTimestamp.collectAsState()
 
+    val manualIntervalMinutes by viewModel.manualIntervalMinutes.collectAsState()
+    val effectiveIntervalMinutes by viewModel.effectiveIntervalMinutes.collectAsState()
+    val activePlan by viewModel.activePlan.collectAsState()
+    val nextAllowedTimestamp by viewModel.nextAllowedTimestamp.collectAsState()
+    val planProgress by viewModel.planProgress.collectAsState()
+
+    val latestPurchase by viewModel.latestPurchase.collectAsState()
+    val costPerCigarette by viewModel.costPerCigarette.collectAsState()
+    val spentToday by viewModel.spentToday.collectAsState()
+    val spentWeek by viewModel.spentWeek.collectAsState()
+
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
             now = System.currentTimeMillis()
-            delay(60_000)
+            delay(1_000)
         }
     }
 
@@ -63,39 +74,75 @@ fun SmokingScreen(viewModel: SmokingViewModel) {
             TopAppBar(title = { Text("Smoking") })
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            StreakCard(lastLog = lastLog, now = now)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            item { StreakCard(lastLog = lastLog, now = now) }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatChip(label = "Today", value = todayCount.toString(), modifier = Modifier.weight(1f))
-                StatChip(label = "This week", value = weekCount.toString(), modifier = Modifier.weight(1f))
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatChip(label = "Today", value = todayCount.toString(), modifier = Modifier.weight(1f))
+                    StatChip(label = "This week", value = weekCount.toString(), modifier = Modifier.weight(1f))
+                }
             }
 
-            Button(
-                onClick = { viewModel.logNow() },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Icon(Icons.Filled.SmokingRooms, contentDescription = null)
-                Text(" Log a cigarette", modifier = Modifier.padding(start = 4.dp))
+            item {
+                Button(
+                    onClick = { viewModel.logNow() },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Filled.SmokingRooms, contentDescription = null)
+                    Text(" Log a cigarette", modifier = Modifier.padding(start = 4.dp))
+                }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+            item {
+                IntervalSection(
+                    manualIntervalMinutes = manualIntervalMinutes,
+                    effectiveIntervalMinutes = effectiveIntervalMinutes,
+                    isPlanControlled = activePlan?.type == QuitPlanType.INTERVAL_TAPER,
+                    nextAllowedTimestamp = nextAllowedTimestamp,
+                    now = now,
+                    onSetInterval = { viewModel.setManualIntervalMinutes(it) }
+                )
+            }
+
+            item {
+                CostSection(
+                    costPerCigarette = costPerCigarette,
+                    spentToday = spentToday,
+                    spentWeek = spentWeek,
+                    lastPurchase = latestPurchase,
+                    onLogPurchase = { packs, price, sticks -> viewModel.logPurchase(packs, price, sticks) }
+                )
+            }
+
+            item {
+                QuitPlanSection(
+                    progress = planProgress,
+                    onStartPlan = { type, weeks, startValue -> viewModel.startPlan(type, weeks, startValue) },
+                    onCancelPlan = { viewModel.cancelPlan() }
+                )
+            }
+
+            item { HorizontalDivider(modifier = Modifier.padding(top = 8.dp)) }
 
             if (entries.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                item {
                     Text(
                         "No cigarettes logged yet.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             } else {
-                LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-                    items(entries, key = { it.id }) { entry ->
-                        HistoryRow(entry = entry, onDelete = { viewModel.delete(entry) })
-                    }
+                items(entries, key = { it.id }) { entry ->
+                    HistoryRow(entry = entry, onDelete = { viewModel.delete(entry) })
                 }
             }
         }
@@ -118,7 +165,7 @@ private fun StreakCard(lastLog: Long?, now: Long) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = if (lastLog == null) "No logs yet" else StreakUtils.formatElapsed(now - lastLog),
+                text = if (lastLog == null) "No logs yet" else StreakUtils.formatElapsedWithSeconds(now - lastLog),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 4.dp)

@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             HabitTrackerTheme {
-                HabitTrackerNavHost(smokingRepository = app.smokingRepository)
+                HabitTrackerNavHost(application = app)
             }
         }
     }

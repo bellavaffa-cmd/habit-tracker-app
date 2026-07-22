@@ -18,16 +18,24 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.habittracker.app.data.smoking.SmokingRepository
+import com.habittracker.app.HabitTrackerApplication
 import com.habittracker.app.ui.common.ComingSoonScreen
 import com.habittracker.app.ui.home.HomeScreen
 import com.habittracker.app.ui.smoking.SmokingScreen
 import com.habittracker.app.ui.smoking.SmokingViewModel
 
 @Composable
-fun HabitTrackerNavHost(smokingRepository: SmokingRepository) {
+fun HabitTrackerNavHost(application: HabitTrackerApplication) {
     val navController = rememberNavController()
-    val smokingViewModel: SmokingViewModel = viewModel(factory = SmokingViewModel.Factory(smokingRepository))
+    val smokingViewModel: SmokingViewModel = viewModel(
+        factory = SmokingViewModel.Factory(
+            application = application,
+            repository = application.smokingRepository,
+            settingsRepository = application.smokingSettingsRepository,
+            purchaseRepository = application.cigarettePurchaseRepository,
+            quitPlanRepository = application.quitPlanRepository
+        )
+    )
 
     Scaffold(
         bottomBar = { HabitTrackerBottomBar(navController) }

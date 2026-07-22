@@ -43,4 +43,20 @@ object StreakUtils {
             append("${minutes}m")
         }
     }
+
+    /** Like [formatElapsed] but keeps seconds precision, e.g. "4h 15m 03s" — for a live-ticking timer. */
+    fun formatElapsedWithSeconds(millis: Long): String {
+        if (millis < 0) return "0s"
+        val totalSeconds = millis / 1000
+        val days = totalSeconds / (60 * 60 * 24)
+        val hours = (totalSeconds / 3600) % 24
+        val minutes = (totalSeconds / 60) % 60
+        val seconds = totalSeconds % 60
+        return buildString {
+            if (days > 0) append("${days}d ")
+            if (days > 0 || hours > 0) append("${hours}h ")
+            if (days > 0 || hours > 0 || minutes > 0) append("${minutes}m ")
+            append("%02ds".format(seconds))
+        }
+    }
 }
