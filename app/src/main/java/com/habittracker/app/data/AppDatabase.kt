@@ -9,6 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.habittracker.app.data.calories.CalorieLog
 import com.habittracker.app.data.calories.CalorieLogDao
+import com.habittracker.app.data.hydration.HydrationDao
+import com.habittracker.app.data.hydration.HydrationLog
 import com.habittracker.app.data.smoking.CigarettePurchase
 import com.habittracker.app.data.smoking.CigarettePurchaseDao
 import com.habittracker.app.data.smoking.Converters
@@ -16,6 +18,8 @@ import com.habittracker.app.data.smoking.QuitPlan
 import com.habittracker.app.data.smoking.QuitPlanDao
 import com.habittracker.app.data.smoking.SmokingDao
 import com.habittracker.app.data.smoking.SmokingLog
+import com.habittracker.app.data.workout.WorkoutDao
+import com.habittracker.app.data.workout.WorkoutLog
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -64,9 +68,37 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `hydration_log` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `timestampMillis` INTEGER NOT NULL,
+                `amountMl` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `workout_log` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `timestampMillis` INTEGER NOT NULL,
+                `type` TEXT NOT NULL,
+                `durationMinutes` INTEGER NOT NULL,
+                `notes` TEXT
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
-    entities = [SmokingLog::class, CigarettePurchase::class, QuitPlan::class, CalorieLog::class],
-    version = 3,
+    entities = [
+        SmokingLog::class, CigarettePurchase::class, QuitPlan::class, CalorieLog::class,
+        HydrationLog::class, WorkoutLog::class
+    ],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -75,6 +107,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cigarettePurchaseDao(): CigarettePurchaseDao
     abstract fun quitPlanDao(): QuitPlanDao
     abstract fun calorieLogDao(): CalorieLogDao
+    abstract fun hydrationDao(): HydrationDao
+    abstract fun workoutDao(): WorkoutDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -85,7 +119,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "habit-tracker.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
             }
     }
 }

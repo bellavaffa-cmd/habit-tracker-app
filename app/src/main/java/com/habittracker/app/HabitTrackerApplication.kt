@@ -4,11 +4,13 @@ import android.app.Application
 import com.habittracker.app.data.AppDatabase
 import com.habittracker.app.data.calories.CalorieLogRepository
 import com.habittracker.app.data.calories.CaloriesSettingsRepository
+import com.habittracker.app.data.hydration.HydrationRepository
 import com.habittracker.app.data.profile.UserProfileRepository
 import com.habittracker.app.data.smoking.CigarettePurchaseRepository
 import com.habittracker.app.data.smoking.QuitPlanRepository
 import com.habittracker.app.data.smoking.SmokingRepository
 import com.habittracker.app.data.smoking.SmokingSettingsRepository
+import com.habittracker.app.data.workout.WorkoutRepository
 import com.habittracker.app.update.UpdateManager
 
 class HabitTrackerApplication : Application() {
@@ -21,4 +23,6 @@ class HabitTrackerApplication : Application() {
     val calorieLogRepository: CalorieLogRepository by lazy { CalorieLogRepository(database.calorieLogDao()) }
     val caloriesSettingsRepository: CaloriesSettingsRepository by lazy { CaloriesSettingsRepository(this) }
     val userProfileRepository: UserProfileRepository by lazy { UserProfileRepository(this) }
+    val hydrationRepository: HydrationRepository by lazy { HydrationRepository(database.hydrationDao()) }
+    val workoutRepository: WorkoutRepository by lazy { WorkoutRepository(database.workoutDao()) }
 }

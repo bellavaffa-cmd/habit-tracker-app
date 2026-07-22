@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,14 +35,17 @@ import com.habittracker.app.HabitTrackerApplication
 import com.habittracker.app.ui.calories.CaloriesScreen
 import com.habittracker.app.ui.calories.CaloriesSettingsScreen
 import com.habittracker.app.ui.calories.CaloriesViewModel
-import com.habittracker.app.ui.common.ComingSoonScreen
 import com.habittracker.app.ui.home.HomeScreen
+import com.habittracker.app.ui.hydration.HydrationScreen
+import com.habittracker.app.ui.hydration.HydrationViewModel
 import com.habittracker.app.ui.profile.ProfileScreen
 import com.habittracker.app.ui.profile.ProfileViewModel
 import com.habittracker.app.ui.settings.SettingsScreen
 import com.habittracker.app.ui.smoking.SmokingScreen
 import com.habittracker.app.ui.smoking.SmokingSettingsScreen
 import com.habittracker.app.ui.smoking.SmokingViewModel
+import com.habittracker.app.ui.workout.WorkoutScreen
+import com.habittracker.app.ui.workout.WorkoutViewModel
 import com.habittracker.app.update.UpdateInfo
 
 @Composable
@@ -72,6 +73,19 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             repository = application.userProfileRepository
         )
     )
+    val hydrationViewModel: HydrationViewModel = viewModel(
+        factory = HydrationViewModel.Factory(
+            application = application,
+            repository = application.hydrationRepository,
+            profileRepository = application.userProfileRepository
+        )
+    )
+    val workoutViewModel: WorkoutViewModel = viewModel(
+        factory = WorkoutViewModel.Factory(
+            application = application,
+            repository = application.workoutRepository
+        )
+    )
 
     val updateManager = application.updateManager
     val updateState by updateManager.state.collectAsState()
@@ -90,6 +104,8 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                     smokingViewModel = smokingViewModel,
                     caloriesViewModel = caloriesViewModel,
                     profileViewModel = profileViewModel,
+                    hydrationViewModel = hydrationViewModel,
+                    workoutViewModel = workoutViewModel,
                     onNavigate = { route ->
                         navController.navigate(route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -107,7 +123,10 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                 )
             }
             composable(Routes.WORKOUT) {
-                ComingSoonScreen(title = "Workout Tracker", icon = Icons.Filled.FitnessCenter)
+                WorkoutScreen(viewModel = workoutViewModel)
+            }
+            composable(Routes.HYDRATION) {
+                HydrationScreen(viewModel = hydrationViewModel)
             }
             composable(Routes.CALORIES) {
                 CaloriesScreen(

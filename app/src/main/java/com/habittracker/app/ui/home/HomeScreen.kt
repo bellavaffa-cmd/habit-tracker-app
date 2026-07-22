@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmokingRooms
@@ -32,9 +33,11 @@ import com.habittracker.app.data.profile.UserProfile
 import com.habittracker.app.data.profile.bmiCategory
 import com.habittracker.app.ui.calories.CaloriesViewModel
 import com.habittracker.app.ui.common.StreakUtils
+import com.habittracker.app.ui.hydration.HydrationViewModel
 import com.habittracker.app.ui.nav.Routes
 import com.habittracker.app.ui.profile.ProfileViewModel
 import com.habittracker.app.ui.smoking.SmokingViewModel
+import com.habittracker.app.ui.workout.WorkoutViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +45,8 @@ fun HomeScreen(
     smokingViewModel: SmokingViewModel,
     caloriesViewModel: CaloriesViewModel,
     profileViewModel: ProfileViewModel,
+    hydrationViewModel: HydrationViewModel,
+    workoutViewModel: WorkoutViewModel,
     onNavigate: (String) -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -49,6 +54,9 @@ fun HomeScreen(
     val lastLog by smokingViewModel.lastLogTimestamp.collectAsState()
     val todayCalories by caloriesViewModel.todayCalories.collectAsState()
     val profile by profileViewModel.profile.collectAsState()
+    val todayMl by hydrationViewModel.todayMl.collectAsState()
+    val recommendedMl by hydrationViewModel.recommendedMl.collectAsState()
+    val todayWorkoutMinutes by workoutViewModel.todayMinutes.collectAsState()
     val now = System.currentTimeMillis()
 
     Scaffold(
@@ -84,9 +92,18 @@ fun HomeScreen(
                 TrackerSummaryCard(
                     title = "Workout",
                     icon = Icons.Filled.FitnessCenter,
-                    primaryLine = "Coming soon",
+                    primaryLine = "$todayWorkoutMinutes min today",
                     secondaryLine = null,
                     onClick = { onNavigate(Routes.WORKOUT) }
+                )
+            }
+            item {
+                TrackerSummaryCard(
+                    title = "Hydration",
+                    icon = Icons.Filled.LocalDrink,
+                    primaryLine = "$todayMl / $recommendedMl ml today",
+                    secondaryLine = null,
+                    onClick = { onNavigate(Routes.HYDRATION) }
                 )
             }
             item {
