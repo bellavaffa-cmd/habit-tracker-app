@@ -18,6 +18,8 @@ import com.habittracker.app.data.smoking.QuitPlan
 import com.habittracker.app.data.smoking.QuitPlanDao
 import com.habittracker.app.data.smoking.SmokingDao
 import com.habittracker.app.data.smoking.SmokingLog
+import com.habittracker.app.data.workout.GymExerciseDao
+import com.habittracker.app.data.workout.GymExerciseLog
 import com.habittracker.app.data.workout.WorkoutDao
 import com.habittracker.app.data.workout.WorkoutLog
 
@@ -93,12 +95,30 @@ private val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `gym_log` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `timestampMillis` INTEGER NOT NULL,
+                `exerciseName` TEXT NOT NULL,
+                `muscleGroup` TEXT NOT NULL,
+                `sets` INTEGER NOT NULL,
+                `reps` INTEGER NOT NULL,
+                `weightKg` REAL NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
     entities = [
         SmokingLog::class, CigarettePurchase::class, QuitPlan::class, CalorieLog::class,
-        HydrationLog::class, WorkoutLog::class
+        HydrationLog::class, WorkoutLog::class, GymExerciseLog::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -109,6 +129,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun calorieLogDao(): CalorieLogDao
     abstract fun hydrationDao(): HydrationDao
     abstract fun workoutDao(): WorkoutDao
+    abstract fun gymExerciseDao(): GymExerciseDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -119,7 +140,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "habit-tracker.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
             }
     }
 }

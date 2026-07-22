@@ -44,6 +44,9 @@ import com.habittracker.app.ui.settings.SettingsScreen
 import com.habittracker.app.ui.smoking.SmokingScreen
 import com.habittracker.app.ui.smoking.SmokingSettingsScreen
 import com.habittracker.app.ui.smoking.SmokingViewModel
+import com.habittracker.app.ui.workout.GymLogScreen
+import com.habittracker.app.ui.workout.StretchLibraryScreen
+import com.habittracker.app.ui.workout.WorkoutPlanScreen
 import com.habittracker.app.ui.workout.WorkoutScreen
 import com.habittracker.app.ui.workout.WorkoutViewModel
 import com.habittracker.app.update.UpdateInfo
@@ -83,7 +86,10 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
     val workoutViewModel: WorkoutViewModel = viewModel(
         factory = WorkoutViewModel.Factory(
             application = application,
-            repository = application.workoutRepository
+            repository = application.workoutRepository,
+            profileRepository = application.userProfileRepository,
+            gymRepository = application.gymExerciseRepository,
+            anthropicSettingsRepository = application.caloriesSettingsRepository
         )
     )
 
@@ -123,7 +129,21 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
                 )
             }
             composable(Routes.WORKOUT) {
-                WorkoutScreen(viewModel = workoutViewModel)
+                WorkoutScreen(
+                    viewModel = workoutViewModel,
+                    onOpenGymLog = { navController.navigate(Routes.WORKOUT_GYM) },
+                    onOpenPlan = { navController.navigate(Routes.WORKOUT_PLAN) },
+                    onOpenStretches = { navController.navigate(Routes.WORKOUT_STRETCHES) }
+                )
+            }
+            composable(Routes.WORKOUT_GYM) {
+                GymLogScreen(viewModel = workoutViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.WORKOUT_PLAN) {
+                WorkoutPlanScreen(viewModel = workoutViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.WORKOUT_STRETCHES) {
+                StretchLibraryScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.HYDRATION) {
                 HydrationScreen(viewModel = hydrationViewModel)

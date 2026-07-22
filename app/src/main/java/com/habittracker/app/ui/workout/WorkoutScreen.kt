@@ -1,5 +1,6 @@
 package com.habittracker.app.ui.workout
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.SportsGymnastics
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.habittracker.app.data.workout.WorkoutLog
+import com.habittracker.app.data.workout.caloriesBurnedFor
 import com.habittracker.app.ui.common.ConfirmDeleteDialog
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -51,21 +59,42 @@ private val workoutTypes = listOf("Cardio", "Strength", "Yoga", "Walking", "Cycl
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkoutScreen(viewModel: WorkoutViewModel) {
+fun WorkoutScreen(
+    viewModel: WorkoutViewModel,
+    onOpenGymLog: () -> Unit,
+    onOpenPlan: () -> Unit,
+    onOpenStretches: () -> Unit
+) {
     val entries by viewModel.entries.collectAsState()
     val todayMinutes by viewModel.todayMinutes.collectAsState()
     val weekMinutes by viewModel.weekMinutes.collectAsState()
     val weekWorkoutCount by viewModel.weekWorkoutCount.collectAsState()
+    val todayCaloriesBurned by viewModel.todayCaloriesBurned.collectAsState()
+    val weekCaloriesBurned by viewModel.weekCaloriesBurned.collectAsState()
+    val weightKg by viewModel.effectiveWeightKg.collectAsState()
 
     var showLogDialog by remember { mutableStateOf(false) }
     var pendingDeleteEntry by remember { mutableStateOf<WorkoutLog?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Workout") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Workout") },
+                actions = {
+                    IconButton(onClick = onOpenPlan) {
+                        Icon(Icons.Filled.AutoAwesome, contentDescription = "AI workout plan")
+                    }
+                    IconButton(onClick = onOpenStretches) {
+                        Icon(Icons.Filled.SelfImprovement, contentDescription = "Stretches")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showLogDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Log a workout")
-            }
+            WorkoutLogFab(
+                onLogWorkout = { showLogDialog = true },
+                onLogGymExercise = onOpenGymLog
+            )
         }
     ) { padding ->
         LazyColumn(
@@ -73,7 +102,15 @@ fun WorkoutScreen(viewModel: WorkoutViewModel) {
             contentPadding = PaddingValues(bottom = 96.dp, start = 16.dp, end = 16.dp, top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { WorkoutSummaryCard(todayMinutes = todayMinutes, weekMinutes = weekMinutes, weekWorkoutCount = weekWorkoutCount) }
+            item {
+                WorkoutSummaryCard(
+                    todayMinutes = todayMinutes,
+                    weekMinutes = weekMinutes,
+                    weekWorkoutCount = weekWorkoutCount,
+                    todayCaloriesBurned = todayCaloriesBurned,
+                    weekCaloriesBurned = weekCaloriesBurned
+                )
+            }
             item { HorizontalDivider() }
             if (entries.isEmpty()) {
                 item {
@@ -86,7 +123,11 @@ fun WorkoutScreen(viewModel: WorkoutViewModel) {
                 }
             } else {
                 items(entries, key = { it.id }) { entry ->
-                    WorkoutHistoryRow(entry = entry, onDelete = { pendingDeleteEntry = entry })
+                    WorkoutHistoryRow(
+                        entry = entry,
+                        caloriesBurned = caloriesBurnedFor(entry.type, entry.durationMinutes, weightKg),
+                        onDelete = { pendingDeleteEntry = entry }
+                    )
                 }
             }
         }
@@ -115,27 +156,80 @@ fun WorkoutScreen(viewModel: WorkoutViewModel) {
 }
 
 @Composable
-private fun WorkoutSummaryCard(todayMinutes: Int, weekMinutes: Int, weekWorkoutCount: Int) {
+private fun WorkoutLogFab(onLogWorkout: () -> Unit, onLogGymExercise: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        AnimatedVisibility(visible = expanded) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ExtendedFloatingActionButton(
+                    text = { Text("Log gym exercise") },
+                    icon = { Icon(Icons.Filled.SportsGymnastics, contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onLogGymExercise()
+                    }
+                )
+                ExtendedFloatingActionButton(
+                    text = { Text("Log a workout") },
+                    icon = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onLogWorkout()
+                    }
+                )
+            }
+        }
+        FloatingActionButton(onClick = { expanded = !expanded }) {
+            Icon(if (expanded) Icons.Filled.Close else Icons.Filled.Add, contentDescription = "Log")
+        }
+    }
+}
+
+@Composable
+private fun WorkoutSummaryCard(
+    todayMinutes: Int,
+    weekMinutes: Int,
+    weekWorkoutCount: Int,
+    todayCaloriesBurned: Int,
+    weekCaloriesBurned: Int
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${todayMinutes}m", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-                Text("today", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${todayMinutes}m", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("today", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${weekMinutes}m", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("this week", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$weekWorkoutCount", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("workouts", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${weekMinutes}m", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-                Text("this week", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("$weekWorkoutCount", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-                Text("workouts", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text(
+                "~$todayCaloriesBurned cal burned today · ~$weekCaloriesBurned cal this week",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            )
+            Text(
+                "Estimated from standard activity averages and your Profile weight — actual burn varies.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+            )
         }
     }
 }
@@ -192,14 +286,14 @@ private fun LogWorkoutDialog(
 private val workoutTimeFormat = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
 
 @Composable
-private fun WorkoutHistoryRow(entry: WorkoutLog, onDelete: () -> Unit) {
+private fun WorkoutHistoryRow(entry: WorkoutLog, caloriesBurned: Int, onDelete: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("${entry.type} · ${entry.durationMinutes}m", style = MaterialTheme.typography.bodyLarge)
+            Text("${entry.type} · ${entry.durationMinutes}m · ~$caloriesBurned cal", style = MaterialTheme.typography.bodyLarge)
             Text(
                 workoutTimeFormat.format(Date(entry.timestampMillis)) + (entry.notes?.let { " · $it" } ?: ""),
                 style = MaterialTheme.typography.bodySmall,

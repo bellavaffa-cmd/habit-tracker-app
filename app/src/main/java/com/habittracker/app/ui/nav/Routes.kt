@@ -18,6 +18,9 @@ object Routes {
     const val SMOKING_SETTINGS = "smoking_settings"
     const val CALORIES_SETTINGS = "calories_settings"
     const val PROFILE = "profile"
+    const val WORKOUT_GYM = "workout_gym"
+    const val WORKOUT_PLAN = "workout_plan"
+    const val WORKOUT_STRETCHES = "workout_stretches"
 }
 
 data class BottomNavItem(val route: String, val label: String, val icon: ImageVector)

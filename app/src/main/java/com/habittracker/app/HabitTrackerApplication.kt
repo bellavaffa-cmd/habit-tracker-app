@@ -10,6 +10,7 @@ import com.habittracker.app.data.smoking.CigarettePurchaseRepository
 import com.habittracker.app.data.smoking.QuitPlanRepository
 import com.habittracker.app.data.smoking.SmokingRepository
 import com.habittracker.app.data.smoking.SmokingSettingsRepository
+import com.habittracker.app.data.workout.GymExerciseRepository
 import com.habittracker.app.data.workout.WorkoutRepository
 import com.habittracker.app.update.UpdateManager
 
@@ -25,4 +26,5 @@ class HabitTrackerApplication : Application() {
     val userProfileRepository: UserProfileRepository by lazy { UserProfileRepository(this) }
     val hydrationRepository: HydrationRepository by lazy { HydrationRepository(database.hydrationDao()) }
     val workoutRepository: WorkoutRepository by lazy { WorkoutRepository(database.workoutDao()) }
+    val gymExerciseRepository: GymExerciseRepository by lazy { GymExerciseRepository(database.gymExerciseDao()) }
 }
