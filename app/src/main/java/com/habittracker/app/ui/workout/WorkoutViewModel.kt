@@ -9,6 +9,7 @@ import com.habittracker.app.data.calories.CaloriesSettingsRepository
 import com.habittracker.app.data.calories.RateLimitException
 import com.habittracker.app.data.profile.UserProfile
 import com.habittracker.app.data.profile.UserProfileRepository
+import com.habittracker.app.data.steps.StepsRepository
 import com.habittracker.app.data.workout.DEFAULT_WEIGHT_KG
 import com.habittracker.app.data.workout.GymExerciseLog
 import com.habittracker.app.data.workout.GymExerciseRepository
@@ -41,10 +42,34 @@ class WorkoutViewModel(
     private val repository: WorkoutRepository,
     private val profileRepository: UserProfileRepository,
     private val gymRepository: GymExerciseRepository,
-    private val anthropicSettingsRepository: CaloriesSettingsRepository
+    private val anthropicSettingsRepository: CaloriesSettingsRepository,
+    private val stepsRepository: StepsRepository
 ) : AndroidViewModel(application) {
 
     private val planClient = WorkoutPlanClient()
+
+    val stepsAvailable: Boolean = stepsRepository.isAvailable()
+    val stepsPermission: String = stepsRepository.readStepsPermission
+
+    private val _hasStepsPermission = MutableStateFlow(false)
+    val hasStepsPermission: StateFlow<Boolean> = _hasStepsPermission.asStateFlow()
+
+    private val _todaySteps = MutableStateFlow(0L)
+    val todaySteps: StateFlow<Long> = _todaySteps.asStateFlow()
+
+    private val _weekSteps = MutableStateFlow(0L)
+    val weekSteps: StateFlow<Long> = _weekSteps.asStateFlow()
+
+    fun refreshSteps() {
+        viewModelScope.launch {
+            val granted = stepsRepository.hasPermission()
+            _hasStepsPermission.value = granted
+            if (granted) {
+                _todaySteps.value = stepsRepository.readSteps(StreakUtils.startOfToday(), System.currentTimeMillis())
+                _weekSteps.value = stepsRepository.readSteps(StreakUtils.startOfWeek(), System.currentTimeMillis())
+            }
+        }
+    }
 
     val entries: StateFlow<List<WorkoutLog>> = repository.entries
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -134,11 +159,14 @@ class WorkoutViewModel(
         private val repository: WorkoutRepository,
         private val profileRepository: UserProfileRepository,
         private val gymRepository: GymExerciseRepository,
-        private val anthropicSettingsRepository: CaloriesSettingsRepository
+        private val anthropicSettingsRepository: CaloriesSettingsRepository,
+        private val stepsRepository: StepsRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return WorkoutViewModel(application, repository, profileRepository, gymRepository, anthropicSettingsRepository) as T
+            return WorkoutViewModel(
+                application, repository, profileRepository, gymRepository, anthropicSettingsRepository, stepsRepository
+            ) as T
         }
     }
 }

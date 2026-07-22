@@ -1,5 +1,6 @@
 package com.habittracker.app.ui.workout
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
@@ -32,12 +34,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import com.habittracker.app.data.workout.WorkoutLog
 import com.habittracker.app.data.workout.caloriesBurnedFor
 import com.habittracker.app.ui.common.ConfirmDeleteDialog
@@ -72,9 +77,18 @@ fun WorkoutScreen(
     val todayCaloriesBurned by viewModel.todayCaloriesBurned.collectAsState()
     val weekCaloriesBurned by viewModel.weekCaloriesBurned.collectAsState()
     val weightKg by viewModel.effectiveWeightKg.collectAsState()
+    val hasStepsPermission by viewModel.hasStepsPermission.collectAsState()
+    val todaySteps by viewModel.todaySteps.collectAsState()
+    val weekSteps by viewModel.weekSteps.collectAsState()
 
     var showLogDialog by remember { mutableStateOf(false) }
     var pendingDeleteEntry by remember { mutableStateOf<WorkoutLog?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.refreshSteps() }
+
+    val stepsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { viewModel.refreshSteps() }
 
     Scaffold(
         topBar = {
@@ -109,6 +123,15 @@ fun WorkoutScreen(
                     weekWorkoutCount = weekWorkoutCount,
                     todayCaloriesBurned = todayCaloriesBurned,
                     weekCaloriesBurned = weekCaloriesBurned
+                )
+            }
+            item {
+                StepsCard(
+                    available = viewModel.stepsAvailable,
+                    hasPermission = hasStepsPermission,
+                    todaySteps = todaySteps,
+                    weekSteps = weekSteps,
+                    onConnect = { stepsPermissionLauncher.launch(setOf(viewModel.stepsPermission)) }
                 )
             }
             item { HorizontalDivider() }
@@ -230,6 +253,59 @@ private fun WorkoutSummaryCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun StepsCard(
+    available: Boolean,
+    hasPermission: Boolean,
+    todaySteps: Long,
+    weekSteps: Long,
+    onConnect: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.AutoMirrored.Filled.DirectionsWalk, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("Steps", style = MaterialTheme.typography.titleMedium)
+            }
+            when {
+                !available -> Text(
+                    "Health Connect isn't available on this device.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                !hasPermission -> {
+                    Text(
+                        "Connect Health Connect to pull step counts synced from your smartwatch.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
+                    )
+                    OutlinedButton(onClick = onConnect) { Text("Connect") }
+                }
+                else -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("$todaySteps", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                            Text("today", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("$weekSteps", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                            Text("this week", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
         }
     }
 }

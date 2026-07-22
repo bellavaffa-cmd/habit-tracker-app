@@ -89,7 +89,8 @@ fun HabitTrackerNavHost(application: HabitTrackerApplication) {
             repository = application.workoutRepository,
             profileRepository = application.userProfileRepository,
             gymRepository = application.gymExerciseRepository,
-            anthropicSettingsRepository = application.caloriesSettingsRepository
+            anthropicSettingsRepository = application.caloriesSettingsRepository,
+            stepsRepository = application.stepsRepository
         )
     )
 

@@ -24,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -57,7 +58,11 @@ fun HomeScreen(
     val todayMl by hydrationViewModel.todayMl.collectAsState()
     val recommendedMl by hydrationViewModel.recommendedMl.collectAsState()
     val todayWorkoutMinutes by workoutViewModel.todayMinutes.collectAsState()
+    val hasStepsPermission by workoutViewModel.hasStepsPermission.collectAsState()
+    val todaySteps by workoutViewModel.todaySteps.collectAsState()
     val now = System.currentTimeMillis()
+
+    LaunchedEffect(Unit) { workoutViewModel.refreshSteps() }
 
     Scaffold(
         topBar = {
@@ -93,7 +98,7 @@ fun HomeScreen(
                     title = "Workout",
                     icon = Icons.Filled.FitnessCenter,
                     primaryLine = "$todayWorkoutMinutes min today",
-                    secondaryLine = null,
+                    secondaryLine = if (hasStepsPermission) "$todaySteps steps today" else null,
                     onClick = { onNavigate(Routes.WORKOUT) }
                 )
             }

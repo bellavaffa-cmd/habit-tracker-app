@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Reads step counts synced to Health Connect from the user's smartwatch companion app. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
 
     <application
         android:name=".HabitTrackerApplication"
