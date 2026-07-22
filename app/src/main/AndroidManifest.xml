@@ -47,5 +47,29 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Health Connect's required permission-rationale screen (Android 13 and below route:
+             reached from inside the standalone Health Connect app). Without this declared, the
+             health-permission request can fail to display at all. -->
+        <activity
+            android:name=".ui.steps.PermissionsRationaleActivity"
+            android:exported="true"
+            android:permission="com.google.android.apps.healthdata.permission.START_ONBOARDING">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Same rationale screen, Android 14+ route (Health Connect is a platform module there). -->
+        <activity-alias
+            android:name=".ui.steps.ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".ui.steps.PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
     </application>
 </manifest>
